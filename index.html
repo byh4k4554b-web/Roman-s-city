@@ -5772,13 +5772,14 @@ function makeCup(d){const g=new THREE.Group(),H=.15,rt=.047,rb=.035;
  const lg=new THREE.Mesh(new THREE.CircleGeometry(.018,20),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(lc),transparent:true}));lg.position.set(0,H*.55,rt*.93+.003);g.add(lg);
  g.traverse(o=>{if(o.isMesh)o.castShadow=true});return g}
 function findBone(root,re){let b=null;root.traverse(o=>{if(o.isBone&&re.test(o.name))b=o});return b}
-function giveDrink(d){dropDrink();if(!me)return;
- const cup=makeCup(d);const hb=findBone(me.root,/RightHand$/),mid=findBone(me.root,/RightHandMiddle1$/);
- if(hb&&mid){me.root.updateMatrixWorld(true);const a=hb.getWorldPosition(new THREE.Vector3()),b=mid.getWorldPosition(new THREE.Vector3());const p=a.clone().lerp(b,.75);
-  const holder=new THREE.Group();hb.add(holder);hb.updateMatrixWorld(true);const ws=me.root.children[0].scale.x*1.25;
-  const wm=new THREE.Matrix4().compose(new THREE.Vector3(p.x,p.y-.13*ws,p.z),me.root.getWorldQuaternion(new THREE.Quaternion()),new THREE.Vector3(ws,ws,ws));
-  holder.matrix.multiplyMatrices(new THREE.Matrix4().copy(hb.matrixWorld).invert(),wm);holder.matrix.decompose(holder.position,holder.quaternion,holder.scale);holder.add(cup);drink={d,holder}}
- else{cup.scale.setScalar(1.3);cup.position.set(.45,1.05,.2);me.root.add(cup);drink={d,holder:cup}}
+function cupOn(P,d){const cup=makeCup(d);const hb=findBone(P.root,/RightHand$/),mid=findBone(P.root,/RightHandMiddle1$/);
+ if(hb&&mid){P.root.updateMatrixWorld(true);const a=hb.getWorldPosition(new THREE.Vector3()),b=mid.getWorldPosition(new THREE.Vector3());const p=a.clone().lerp(b,.75);
+  const holder=new THREE.Group();hb.add(holder);hb.updateMatrixWorld(true);const ws=P.root.children[0].scale.x*1.25;
+  const wm=new THREE.Matrix4().compose(new THREE.Vector3(p.x,p.y-.13*ws,p.z),P.root.getWorldQuaternion(new THREE.Quaternion()),new THREE.Vector3(ws,ws,ws));
+  holder.matrix.multiplyMatrices(new THREE.Matrix4().copy(hb.matrixWorld).invert(),wm);holder.matrix.decompose(holder.position,holder.quaternion,holder.scale);holder.add(cup);return holder}
+ cup.scale.setScalar(1.3);cup.position.set(.45,1.05,.2);P.root.add(cup);return cup}
+function drinkById(id){return typeof id==="string"&&id?(DRINKS.find(x=>x.id===id)||(typeof BAR!=="undefined"&&BAR.find(x=>x.id===id))||null):null}
+function giveDrink(d){dropDrink();if(!me)return;drink={d,holder:cupOn(me,d)};
  fpCup=makeCup(d);fpCup.scale.setScalar(1.6);fpCup.position.set(.32,-.42,-.75);fpCup.rotation.y=-.4;cam.add(fpCup);if(!cam.parent)S.add(cam);
  $("#drink").innerHTML=`<span>${d.ic||(d.hot?"☕":"🥤")} ${d.name}</span><button id="dkx" aria-label="Finish drink">Done</button>`;$("#drink").style.display="flex";$("#dkx").onclick=()=>{const jj=!!d.fruit;dropDrink();say(jj?"Thanks for stopping by Cuper Juice! 🍊":"Thanks for coming! Come back soon ✿",jj?"Cuper Juice":"Sydney")}}
 function dropDrink(){if(drink){drink.holder.parent&&drink.holder.parent.remove(drink.holder);drink=null}if(fpCup){cam.remove(fpCup);fpCup=null}$("#drink").style.display="none"}
@@ -6367,7 +6368,7 @@ const MP=(()=>{let sb=null,uid=null,ch=null,status="off",ready=false,initP=null;
     [...peers.keys()].forEach(k=>{if(!seen.has(k))drop(k)});setStatus("online")});
   ch.on("broadcast",{event:"m"},({payload:d})=>{if(!d||typeof d!=="object")return;const p=peers.get(String(d.id||""));if(!p)return;
     const x=+d.x,z=+d.z,r=+d.r;if(!isFinite(x)||!isFinite(z)||!isFinite(r)||Math.abs(x)>600||Math.abs(z)>900)return;
-    if(p.x===null){p.x=x;p.z=z;p.r=r}p.tx=x;p.tz=z;p.tr=r;p.a=d.a==="w"?"w":d.a==="d"?"d":"i";p.v=!!d.v;p.seen=performance.now()});
+    if(p.x===null){p.x=x;p.z=z;p.r=r}p.tx=x;p.tz=z;p.tr=r;p.a=d.a==="w"?"w":d.a==="d"?"d":"i";p.v=!!d.v;p.dk=drinkById(d.dk)?d.dk:"";p.seen=performance.now()});
   ch.on("broadcast",{event:"hi"},()=>{needPing=true});
   ch.subscribe(async s=>{if(s==="SUBSCRIBED"){await ch.track({n:myName(),c:PROFILE.c,k:PROFILE.kid?1:0});needPing=true;try{ch.send({type:"broadcast",event:"hi",payload:{}})}catch(e){}setStatus("online")}
    else if(s==="CHANNEL_ERROR"||s==="TIMED_OUT"||s==="CLOSED")setStatus("connecting")})}
@@ -6379,8 +6380,8 @@ const MP=(()=>{let sb=null,uid=null,ch=null,status="off",ready=false,initP=null;
  function tick(dt){if(!ch||status!=="online"||!me)return;const now=performance.now();
   // enviar mi posición (2.5 veces por segundo, solo si cambió) para ahorrar mensajes
   sendT-=dt;const p=me.root.position,inSki=MG.active===SKI,a=me.cur==="walk"?"w":me.cur==="dance"?"d":"i";
-  const cur={x:Math.round(p.x*100)/100,z:Math.round(p.z*100)/100,r:Math.round(me.root.rotation.y*100)/100,a,v:!inSki};
-  const changed=!lastSent||Math.hypot(cur.x-lastSent.x,cur.z-lastSent.z)>.12||Math.abs(cur.r-lastSent.r)>.2||cur.a!==lastSent.a||cur.v!==lastSent.v;
+  const cur={x:Math.round(p.x*100)/100,z:Math.round(p.z*100)/100,r:Math.round(me.root.rotation.y*100)/100,a,v:!inSki,dk:drink&&drink.d?drink.d.id:""};
+  const changed=!lastSent||Math.hypot(cur.x-lastSent.x,cur.z-lastSent.z)>.12||Math.abs(cur.r-lastSent.r)>.2||cur.a!==lastSent.a||cur.v!==lastSent.v||cur.dk!==lastSent.dk;
   if(needPing&&now-joinPing>1500){joinPing=now;needPing=false;lastSent=null}
   if(sendT<=0&&(changed||!lastSent)&&!document.hidden){sendT=.4;lastSent=cur;try{ch.send({type:"broadcast",event:"m",payload:Object.assign({id:uid},cur)})}catch(e){}}
   // mostrar a los más cercanos
@@ -6392,6 +6393,8 @@ const MP=(()=>{let sb=null,uid=null,ch=null,status="off",ready=false,initP=null;
    if(!q.lab){q.lab=nameSprite(q.name,PCSS[q.c]);q.lab.position.y=2.5;R0.add(q.lab)}
    const k=Math.min(1,dt*8),P=R0.position;if(Math.hypot(q.tx-P.x,q.tz-P.z)>12){P.x=q.tx;P.z=q.tz}else{P.x+=(q.tx-P.x)*k;P.z+=(q.tz-P.z)*k}
    let da=q.tr-R0.rotation.y;da=Math.atan2(Math.sin(da),Math.cos(da));R0.rotation.y+=da*Math.min(1,dt*10);
+   if(!q.av.A.dance&&q.av.mixer&&typeof danceClip!=="undefined"&&danceClip)q.av.A.dance=q.av.mixer.clipAction(danceClip);
+   if((q.dk||"")!==(q.dkOn||"")){if(q.cup){q.cup.parent&&q.cup.parent.remove(q.cup);disposeObj(q.cup);q.cup=null}const dd=drinkById(q.dk);if(dd)try{q.cup=cupOn(q.av,dd)}catch(e){}q.dkOn=q.dk||""}
    const moving=Math.hypot(q.tx-P.x,q.tz-P.z)>.05||q.a==="w";play(q.av,moving?"walk":q.a==="d"&&q.av.A.dance?"dance":"idle");q.av.mixer&&q.av.mixer.update(dt)});
   const mb=MP._meB;if(mb&&mb.bub){mb.bubT-=dt;if(mb.bubT<=0){me.root.remove(mb.bub);disposeObj(mb.bub);mb.bub=null}}}
  async function signOut(){try{if(ch){await ch.untrack();sb.removeChannel(ch)}if(sb)await sb.auth.signOut()}catch(e){}}
