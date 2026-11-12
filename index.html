@@ -192,7 +192,7 @@ body.ingame #prompt,body.ingame #joy,body.ingame #dancebtn,body.ingame #help,bod
 </head>
 <body>
 <canvas id="c" tabindex="0"></canvas>
-<div class="hud" id="top"><div id="help">Walk with WASD or the arrow keys, or tap the ground · drag to turn the camera (up/down to look higher) · V switches to first person</div><div id="bubble" role="status" aria-live="polite"></div></div>
+<div class="hud" id="top"><div id="help">Walk with WASD or the arrow keys (hold Shift to run), or tap the ground · drag to turn the camera · V switches to first person</div><div id="bubble" role="status" aria-live="polite"></div></div>
 <button id="prompt"></button>
 <div id="cmenu" role="dialog" aria-modal="true" aria-label="Sydney's menu"><div class="mbox"><button id="mx" aria-label="Close">×</button><h2>Sydney's</h2><p class="msub">coffee &amp; matcha · menu</p><div id="mlist"></div></div></div>
 <div id="drink" role="status"></div>
@@ -6384,7 +6384,7 @@ const MP=(()=>{let sb=null,uid=null,ch=null,status="off",ready=false,initP=null;
     [...peers.keys()].forEach(k=>{if(!seen.has(k))drop(k)});setStatus("online")});
   ch.on("broadcast",{event:"m"},({payload:d})=>{if(!d||typeof d!=="object")return;const p=peers.get(String(d.id||""));if(!p)return;
     const x=+d.x,z=+d.z,r=+d.r;if(!isFinite(x)||!isFinite(z)||!isFinite(r)||Math.abs(x)>600||Math.abs(z)>900)return;
-    if(p.x===null){p.x=x;p.z=z;p.r=r}p.tx=x;p.tz=z;p.tr=r;p.a=d.a==="w"?"w":d.a==="d"?"d":"i";p.v=!!d.v;p.dk=drinkById(d.dk)?d.dk:"";p.seen=performance.now()});
+    if(p.x===null){p.x=x;p.z=z;p.r=r}p.tx=x;p.tz=z;p.tr=r;p.a=d.a==="w"?"w":d.a==="r"?"r":d.a==="d"?"d":"i";p.v=!!d.v;p.dk=drinkById(d.dk)?d.dk:"";p.seen=performance.now()});
   ch.on("broadcast",{event:"hi"},()=>{needPing=true});
   ch.subscribe(async s=>{if(s==="SUBSCRIBED"){await ch.track({n:myName(),c:PROFILE.c,k:PROFILE.kid?1:0});needPing=true;try{ch.send({type:"broadcast",event:"hi",payload:{}})}catch(e){}setStatus("online")}
    else if(s==="CHANNEL_ERROR"||s==="TIMED_OUT"||s==="CLOSED")setStatus("connecting")})}
@@ -6395,7 +6395,7 @@ const MP=(()=>{let sb=null,uid=null,ch=null,status="off",ready=false,initP=null;
   if(p.bub){host.root.remove(p.bub);disposeObj(p.bub)}p.bub=bubbleSprite(text);p.bub.position.y=isMe?2.75:3.1;host.root.add(p.bub);p.bubT=6}
  function tick(dt){if(!ch||status!=="online"||!me)return;const now=performance.now();
   // enviar mi posición (2.5 veces por segundo, solo si cambió) para ahorrar mensajes
-  sendT-=dt;const p=me.root.position,inSki=MG.active===SKI,a=me.cur==="walk"?"w":me.cur==="dance"?"d":"i";
+  sendT-=dt;const p=me.root.position,inSki=MG.active===SKI,a=me.cur==="walk"?"w":me.cur==="run"?"r":me.cur==="dance"?"d":"i";
   const cur={x:Math.round(p.x*100)/100,z:Math.round(p.z*100)/100,r:Math.round(me.root.rotation.y*100)/100,a,v:!inSki,dk:drink&&drink.d?drink.d.id:""};
   const changed=!lastSent||Math.hypot(cur.x-lastSent.x,cur.z-lastSent.z)>.12||Math.abs(cur.r-lastSent.r)>.2||cur.a!==lastSent.a||cur.v!==lastSent.v||cur.dk!==lastSent.dk;
   if(needPing&&now-joinPing>1500){joinPing=now;needPing=false;lastSent=null}
@@ -6407,11 +6407,11 @@ const MP=(()=>{let sb=null,uid=null,ch=null,status="off",ready=false,initP=null;
    if(q.bub){q.bubT-=dt;if(q.bubT<=0){R0.remove(q.bub);disposeObj(q.bub);q.bub=null}}
    if(!R0.visible)return;
    if(!q.lab){q.lab=nameSprite(q.name,PCSS[q.c]);q.lab.position.y=2.5;R0.add(q.lab)}
-   const k=Math.min(1,dt*8),P=R0.position;if(Math.hypot(q.tx-P.x,q.tz-P.z)>12){P.x=q.tx;P.z=q.tz}else{P.x+=(q.tx-P.x)*k;P.z+=(q.tz-P.z)*k}
+   const k=1-Math.exp(-dt*(q.a==="r"?7:8)),P=R0.position;if(Math.hypot(q.tx-P.x,q.tz-P.z)>12){P.x=q.tx;P.z=q.tz}else{P.x+=(q.tx-P.x)*k;P.z+=(q.tz-P.z)*k}
    let da=q.tr-R0.rotation.y;da=Math.atan2(Math.sin(da),Math.cos(da));R0.rotation.y+=da*Math.min(1,dt*10);
    if(!q.av.A.dance&&q.av.mixer&&typeof danceClip!=="undefined"&&danceClip)q.av.A.dance=q.av.mixer.clipAction(danceClip);
    if((q.dk||"")!==(q.dkOn||"")){if(q.cup){q.cup.parent&&q.cup.parent.remove(q.cup);disposeObj(q.cup);q.cup=null}const dd=drinkById(q.dk);if(dd)try{q.cup=cupOn(q.av,dd)}catch(e){}q.dkOn=q.dk||""}
-   const moving=Math.hypot(q.tx-P.x,q.tz-P.z)>.05||q.a==="w";play(q.av,moving?"walk":q.a==="d"&&q.av.A.dance?"dance":"idle");q.av.mixer&&q.av.mixer.update(dt)});
+   const moving=Math.hypot(q.tx-P.x,q.tz-P.z)>.05||q.a==="w"||q.a==="r";play(q.av,moving?(q.a==="r"&&q.av.A.run?"run":"walk"):q.a==="d"&&q.av.A.dance?"dance":"idle");q.av.mixer&&q.av.mixer.update(dt)});
   const mb=MP._meB;if(mb&&mb.bub){mb.bubT-=dt;if(mb.bubT<=0){me.root.remove(mb.bub);disposeObj(mb.bub);mb.bub=null}}}
  async function signOut(){try{if(ch){await ch.untrack();sb.removeChannel(ch)}if(sb)await sb.auth.signOut()}catch(e){}}
  return{init,join,tick,say,retrack,signOut,onChange:f=>fns.push(f),get sb(){return sb},get uid(){return uid},get ready(){return ready},get status(){return status},get count(){return peers.size+(status==="online"?1:0)},peers,get on(){return ok()}}})();
@@ -6466,7 +6466,7 @@ function perfTick(){const t=performance.now(),d=(t-PERF.t)/1000;PERF.t=t;PERF.f+
  if(fps<42&&r>PERF.min+.001){r=Math.max(PERF.min,r-(fps<25?.3:.15));R.setPixelRatio(r);resize();PERF.cool=1.5}
  else if(fps<26&&!PERF.shadowsOff){PERF.shadowsOff=true;sun.castShadow=false;PERF.cool=3}
  else if(fps>57&&r<PERF.max-.001){R.setPixelRatio(Math.min(PERF.max,r+.1));resize();PERF.cool=5}}
-const clock=new THREE.Clock();let faceY=Math.PI;
+const clock=new THREE.Clock();let faceY=Math.PI;const MV={vx:0,vz:0,spd:0},CAMS={x:0,z:15,k:1,fov:58,init:false};
 function loop(){perfTick();
  const dt=Math.min(clock.getDelta(),.05),now=clock.elapsedTime;
  if(MG.active){if(MG.cam.aspect!==cam.aspect){MG.cam.aspect=cam.aspect;MG.cam.updateProjectionMatrix()}MG.active.update(dt,now);SNOW.update(dt,now,null);COURSE.updateNPCs(dt,MG.cam.position);if(MG.active!==SKI){updateClub(dt,now);clubTick(dt);updateDog(dt,now)}LPOOL.update(MG.cam.position.x,MG.cam.position.y,MG.cam.position.z);MP.tick(dt);CULL.update(MG.cam.position.x,MG.cam.position.y,MG.cam.position.z);const f=MG.active.focus,fy=f.y||0;sun.position.set(f.x+sunDir.x*60,fy+sunDir.y*60,f.z+sunDir.z*60);sun.target.position.set(f.x,fy,f.z);sun.target.updateMatrixWorld();R.render(S,MG.cam);requestAnimationFrame(loop);return}
@@ -6477,25 +6477,34 @@ function loop(){perfTick();
    const len=Math.hypot(fx,fz);let dx=0,dz=0;
    if(len>.1){target=null;navQ=[];navGoal=null;if(len>1){fx/=len;fz/=len}dx=-Math.sin(yaw)*fz+Math.cos(yaw)*fx;dz=-Math.cos(yaw)*fz-Math.sin(yaw)*fx;moving=true}
    else if(target){const tx=target.x-me.root.position.x,tz=target.z-me.root.position.z,d=Math.hypot(tx,tz);if(d<(navQ.length?.35:.2)){target=navQ.length?navQ.shift():null;if(!target)navGoal=null}else{dx=tx/d;dz=tz/d;moving=true}}
-   if(moving){const p=me.root.position;p.x+=dx*4.2*dt;p.z+=dz*4.2*dt;faceY=Math.atan2(dx,dz)}
-   const p=me.root.position;worldClamp(p);
+   const p=me.root.position;let want=0;
+   if(moving&&len>.1&&len<1){dx/=len;dz/=len}
+   if(moving){const far=target&&navGoal&&Math.hypot(navGoal.x-p.x,navGoal.z-p.z)>9;const run=keys.ShiftLeft||keys.ShiftRight||len>.92&&(Math.abs(joy.x)+Math.abs(joy.y)>.1)||far;
+    want=run?7.4:(len>.1&&len<1&&(Math.abs(joy.x)+Math.abs(joy.y)>.1)?Math.max(1.6,4.2*len/.92):4.2);faceY=Math.atan2(dx,dz)}
+   {const k=1-Math.exp(-dt*(moving?11:14));MV.vx+=(dx*want-MV.vx)*k;MV.vz+=(dz*want-MV.vz)*k;MV.spd=Math.hypot(MV.vx,MV.vz);if(MV.spd<.05){MV.vx=MV.vz=0;MV.spd=0}p.x+=MV.vx*dt;p.z+=MV.vz*dt}
+   moving=MV.spd>.5;worldClamp(p);
    circles.forEach(c=>{const ox=p.x-c.x,oz=p.z-c.z,d=Math.hypot(ox,oz),m=c.r+.4;if(d<m&&d>0){p.x=c.x+ox/d*m;p.z=c.z+oz/d*m}});
   }
   let da=faceY-me.root.rotation.y;da=Math.atan2(Math.sin(da),Math.cos(da));me.root.rotation.y+=da*Math.min(1,dt*12);
-  if(moving)dancing=false;play(me,moving?"walk":(dancing&&me.A.dance?"dance":"idle"));{const onF=onFloor(me.root.position);if(!onF)dancing=false;const db=$("#dancebtn");db.style.display=onF&&!open?"block":"none";db.textContent=dancing?"✋ Stop dancing (B)":"💃 Dance (B)"}musicZones(me.root.position);
+  if(open){MV.vx=MV.vz=MV.spd=0}if(moving)dancing=false;{const rn=moving&&MV.spd>5.6&&me.A.run;play(me,moving?(rn?"run":"walk"):(dancing&&me.A.dance?"dance":"idle"),.18);if(me.A.walk)me.A.walk.timeScale=Math.max(.55,Math.min(1.25,MV.spd/4.2));if(me.A.run)me.A.run.timeScale=Math.max(.8,Math.min(1.15,MV.spd/7.4))}{const onF=onFloor(me.root.position);if(!onF)dancing=false;const db=$("#dancebtn");db.style.display=onF&&!open?"block":"none";db.textContent=dancing?"✋ Stop dancing (B)":"💃 Dance (B)"}musicZones(me.root.position);
   me.mixer&&me.mixer.update(dt);rafa.mixer&&rafa.mixer.update(dt);syd&&syd.mixer.update(dt);if(fpCup)fpCup.visible=fp;
  }
  const t=me?me.root.position:{x:0,z:6};
  floats.forEach(f=>{if(!reduce)f.s.position.y=f.y+Math.sin(now*1.6+f.ph)*.06});
  if(fp&&me){cam.position.set(t.x,1.68,t.z);cam.lookAt(t.x-Math.sin(yaw)*5,1.62,t.z-Math.cos(yaw)*5);cam.rotateX(pitch);me.root.visible=false}
- else{if(me)me.root.visible=true;let h=4.4-Math.max(0,pitch)*2.3+Math.max(0,-pitch)*2,cx=t.x+Math.sin(yaw)*7.5,cz=t.z+Math.cos(yaw)*7.5;
-  const RM=t.z<8.7&&Math.abs(t.x)<12.2?[-11.3,11.3,-8.3,8.3]:t.z<8.7&&t.x>13.9&&t.x<39.1?[14.6,38.4,-8.1,8.3]:t.z<8.7&&t.x<-13.9&&t.x>-39.1?[-38.6,-14.4,-8.1,8.3]:null;if(RM){const vx=cx-t.x,vz=cz-t.z,mx=vx>0?(RM[1]-t.x)/vx:vx<0?(RM[0]-t.x)/vx:9,mz=vz>0?(RM[3]-t.z)/vz:vz<0?(RM[2]-t.z)/vz:9,k=Math.max(.18,Math.min(1,mx,mz));cx=t.x+vx*k;cz=t.z+vz*k;h=1.9+(h-1.9)*k}
-  cam.position.set(cx,h,cz);cam.lookAt(t.x,1.5,t.z);if(pitch>0)cam.rotateX(pitch*.9)}
+ else{if(me)me.root.visible=true;const rt=me?me.root.position:{x:0,z:6};{const d=Math.hypot(rt.x-CAMS.x,rt.z-CAMS.z);if(!CAMS.init||d>5){CAMS.x=rt.x;CAMS.z=rt.z;CAMS.init=true}else{const a=1-Math.exp(-dt*13);CAMS.x+=(rt.x-CAMS.x)*a;CAMS.z+=(rt.z-CAMS.z)*a}}
+  const t={x:CAMS.x,z:CAMS.z};let h=4.4-Math.max(0,pitch)*2.3+Math.max(0,-pitch)*2,cx=t.x+Math.sin(yaw)*7.5,cz=t.z+Math.cos(yaw)*7.5;
+  const RM=rt.z<8.7&&Math.abs(rt.x)<12.2?[-11.3,11.3,-8.3,8.3]:rt.z<8.7&&rt.x>13.9&&rt.x<39.1?[14.6,38.4,-8.1,8.3]:rt.z<8.7&&rt.x<-13.9&&rt.x>-39.1?[-38.6,-14.4,-8.1,8.3]:null;if(RM){const vx=cx-t.x,vz=cz-t.z,mx=vx>0?(RM[1]-t.x)/vx:vx<0?(RM[0]-t.x)/vx:9,mz=vz>0?(RM[3]-t.z)/vz:vz<0?(RM[2]-t.z)/vz:9,kk=Math.max(.18,Math.min(1,mx,mz));CAMS.k=kk<CAMS.k?kk:CAMS.k+(kk-CAMS.k)*(1-Math.exp(-dt*5));const k=CAMS.k;cx=t.x+vx*k;cz=t.z+vz*k;h=1.9+(h-1.9)*k}else CAMS.k=1;
+  cam.position.set(cx,h,cz);cam.lookAt(t.x,1.5,t.z);if(pitch>0)cam.rotateX(pitch*.9);
+  {const f=58+Math.max(0,Math.min(1,(MV.spd-4.6)/2.6))*5;CAMS.fov+=(f-CAMS.fov)*(1-Math.exp(-dt*5));if(Math.abs(CAMS.fov-cam.fov)>.02){cam.fov=CAMS.fov;cam.updateProjectionMatrix()}}}
  let best=null,bd=99;
  if(me){const p=me.root.position;spots.forEach(s=>{const d=Math.hypot(p.x-s.x,p.z-s.z);if(d<3.2&&d<bd){bd=d;best=s}});const dr=Math.hypot(p.x-8,p.z-5);if(dr<3.2&&dr<bd)best={rafa:true}}
  if(best!==near){near=best;const pr=$("#prompt");if(near){pr.style.display="block";pr.textContent=near.juice==="bar"?"Order a juice (E)":near.mg==="pen"?"Take penalties (E)":near.mg==="ski"?"Ride the chairlift (E)":near.cafe==="menu"?"See the menu (E)":near.cafe==="syd"?"Talk to Sydney (E)":near.dog?"Say hi to Cupercito (E)":near.rent?"View space for rent (E)":near.rafa?"Talk to Román (E)":near.item?`View ${near.item.short} (E)`:"Open spot (E)"}else pr.style.display="none"}
- navStep(dt);mgTick(dt);MP.tick(dt);SNOW.update(dt,now,me?me.root.position:null);COURSE.updateNPCs(dt,cam.position);LPOOL.update(cam.position.x,cam.position.y,cam.position.z);CULL.update(cam.position.x,cam.position.y,cam.position.z);updateClub(dt,now);clubTick(dt);updateDog(dt,now);sun.position.set(t.x+sunDir.x*60,sunDir.y*60,t.z+sunDir.z*60);sun.target.position.set(t.x,0,t.z);sun.target.updateMatrixWorld();R.render(S,cam);requestAnimationFrame(loop)}
+ navStep(dt);mgTick(dt);MP.tick(dt);npcLOD(cam.position);SNOW.update(dt,now,me?me.root.position:null);COURSE.updateNPCs(dt,cam.position);LPOOL.update(cam.position.x,cam.position.y,cam.position.z);CULL.update(cam.position.x,cam.position.y,cam.position.z);updateClub(dt,now);clubTick(dt);updateDog(dt,now);sun.position.set(t.x+sunDir.x*60,sunDir.y*60,t.z+sunDir.z*60);sun.target.position.set(t.x,0,t.z);sun.target.updateMatrixWorld();R.render(S,cam);requestAnimationFrame(loop)}
 
+/* ===== NPC lejanos: no se dibujan ===== */
+let lodN=0;function npcLOD(c){if(++lodN%12)return;const D=MOBILE?34:90,f=P=>{if(P&&P.root){const p=P.root.position;P.root.visible=Math.hypot(p.x-c.x,p.z-c.z)<D}};
+ try{clubNPC.forEach(f);f(clubNPC.bar);f(typeof syd!=="undefined"?syd:null);f(rafa)}catch(e){}}
 /* ===== ARRANQUE ===== */
 function setupProfileUI(){const row=$("#swrow");row.textContent="";PCSS.forEach((c,i)=>{const b=document.createElement("button");b.type="button";b.className="sw"+(i===PROFILE.c?" on":"");b.style.background=c;b.setAttribute("aria-label","Color "+(i+1));b.setAttribute("aria-pressed",i===PROFILE.c?"true":"false");
   b.onclick=()=>{PROFILE.c=i;row.querySelectorAll(".sw").forEach((x,j)=>{x.classList.toggle("on",j===i);x.setAttribute("aria-pressed",j===i?"true":"false")});if(me)tintAvatar(me,PCOLORS[i])};row.append(b)});
